@@ -2,6 +2,7 @@ module Seg_Driver (
     input  wire        clk,       // 系统时钟 50MHz
     input  wire        rst_n,     // 低电平复位
     input  wire        mode,      // 显示模式
+    input  wire        standby_en, // 待机使能
     
     // 从 Data_Processor 传来的温度原码
     input  wire        sign_bit,  // 符号位 (1为负数)
@@ -58,6 +59,10 @@ module Seg_Driver (
                 seg_sel <= 6'b111111; 
                 seg_led <= 8'h00;
             end else begin
+            if (standby_en) begin  //按键为待机状态
+                    seg_sel <= ~(6'b000001 << scan_idx); // 轮流选中6个管子
+                    seg_led <= 8'h3F;                    // 强制输出 0
+                end else begin
                 case (scan_idx)
                     3'd0: begin //显示字母 'C'
                         seg_sel <= 6'b111110; 
@@ -104,7 +109,7 @@ module Seg_Driver (
             end
         end
     end
-
+end
 
     // BCD 转共阴极 7 段码查表函数
     function [7:0] decode_bcd;

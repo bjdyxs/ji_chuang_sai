@@ -3,6 +3,7 @@ module LM75A_Top (
     input  wire        clk,         // 晶振系统时钟 (50MHz)
     input  wire        rst_n,       // 外部复位按键 (低电平有效)
     input  wire        btn_mode,     // 按键：0显示摄氏度，1显示华氏度
+    input  wire        btn_standby,  // 待机按键
     
     
     inout  wire        sda,         // I2C 数据总线
@@ -29,6 +30,9 @@ module LM75A_Top (
 
 	wire  mode_tick;  //消抖模块的输出高电平
     reg mode_reg; //状态寄存器，0为C，1为F
+    
+    wire standby_tick; // 待机消抖脉冲
+    reg  standby_reg;  // 待机状态寄存器，0为工作，1为待机
     
     // 模块 1：I2C 驱动模块
     
@@ -65,6 +69,7 @@ module LM75A_Top (
         .clk        (clk),
         .rst_n      (rst_n),
         .mode       (mode_reg),   // 接收按键指令 (决定最右边亮 c 还是 F)
+        .standby_en (standby_reg), // 连入待机状态
         
         .sign_bit   (sign_bit),  
         .bcd_high   (bcd_high),
@@ -81,7 +86,7 @@ module LM75A_Top (
   
     Alarm_system u_Alarm_system (
         .clk        (clk),
-        .rst_n      (rst_n),
+        .rst_n      (rst_n && !standby_reg), //待机状态不报警
         .temp_raw   (temp_raw),  // 直接查看底层的数据
         .data_vld   (data_vld),  // 有效脉冲做连续10次滤波
         
@@ -90,20 +95,33 @@ module LM75A_Top (
     );
     
     
-    // 模块 5：按键消抖       
+    // 模块 5：按键消抖(切换温度显示模式和切换待机和工作)       
     buttom_debounce u_Button_Debounce (
         .clk      (clk),
         .rst_n    (rst_n),
         .btn_in   (btn_mode),
         .btn_tick (mode_tick)
     );
+    
+    buttom_debounce u_Debounce_Standby (
+        .clk      (clk),
+        .rst_n    (rst_n),
+        .btn_in   (btn_standby),
+        .btn_tick (standby_tick)
+    );
 
+    
     // 翻转逻辑：每检测到一个脉冲，状态取反
     always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            mode_reg <= 1'b0;
-        else if (mode_tick)
-            mode_reg <= ~mode_reg;
+        if (!rst_n) begin
+            mode_reg    <= 1'b0;
+            standby_reg <= 1'b1; // 默认待机状态
+        end else begin
+            if (mode_tick)
+                mode_reg <= ~mode_reg;
+            if (standby_tick)
+                standby_reg <= ~standby_reg;
+        end
     end
 
 
