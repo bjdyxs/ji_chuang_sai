@@ -9,7 +9,9 @@ module LM75A_Top (
     inout  wire        sda,         // I2C 数据总线
     output wire        scl,         // I2C 时钟总线
     
-    
+    output wire        rgb_b,       // RGB蓝灯 (待机)
+    output wire        rgb_g,       // RGB绿灯 (测温)
+    output wire        rgb_r,        // RGB红灯 (报警)
     output wire [5:0]  seg_sel,     // 6位 数码管位选
     output wire [7:0]  seg_led,     // 8位 数码管段选
     output wire        led_alarm,   // LED 报警指示灯
@@ -33,6 +35,7 @@ module LM75A_Top (
     
     wire standby_tick; // 待机消抖脉冲
     reg  standby_reg;  // 待机状态寄存器，0为工作，1为待机
+    wire alarm_sig;  //  Alarm_system 的输出
     
     // 模块 1：I2C 驱动模块
     
@@ -89,11 +92,11 @@ module LM75A_Top (
         .rst_n      (rst_n && !standby_reg), //待机状态不报警
         .temp_raw   (temp_raw),  // 直接查看底层的数据
         .data_vld   (data_vld),  // 有效脉冲做连续10次滤波
-        
-        .led_alarm  (led_alarm), // 驱动板子上的 LED
+        .led_alarm  (alarm_sig), // 灯总控制线，rgb灯亮
+       
         .buzzer_pwm (buzzer_pwm) // 驱动板子上的 蜂鸣器
     );
-    
+    assign led_alarm = alarm_sig; // 再把灯总控制线分流给led灯
     
     // 模块 5：按键消抖(切换温度显示模式和切换待机和工作)       
     buttom_debounce u_Button_Debounce (
@@ -110,6 +113,14 @@ module LM75A_Top (
         .btn_tick (standby_tick)
     );
 
+    // 模块 6：状态指示灯系统
+    RGB_Indicator u_RGB_Indicator (
+        .standby_en (standby_reg), // 连入当前的待机状态
+        .alarm_flag (alarm_sig),   // 连入报警信号
+        .rgb_b      (rgb_b),       
+        .rgb_g      (rgb_g),
+        .rgb_r      (rgb_r)
+    );
     
     // 翻转逻辑：每检测到一个脉冲，状态取反
     always @(posedge clk or negedge rst_n) begin

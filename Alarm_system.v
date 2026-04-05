@@ -58,9 +58,8 @@ module Alarm_System (
         end
     end
 
-    // ==========================================
-    // 4. 蜂鸣器 PWM 驱动 (频率 2kHz, 占空比 50%)
-    // ==========================================
+
+    // 蜂鸣器 PWM 驱动 (频率 2kHz, 占空比 50%)
     reg [14:0] pwm_cnt;
     // 50MHz / 2kHz = 25,000 个周期
     always @(posedge clk or negedge rst_n) begin
